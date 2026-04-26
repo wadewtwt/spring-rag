@@ -1,0 +1,4 @@
+app:
+  rag:
+    store:
+      mode: chroma

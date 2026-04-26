@@ -1,0 +1,6 @@
+app:
+  rag:
+    embedding:
+      mode: simple
+    store:
+      mode: inmemory
