@@ -1,7 +1,8 @@
 spring:
   application:
     name: spring-rag-backend
-
+server:
+  port: 8089
 app:
   rag:
     embedding:
