@@ -9,16 +9,30 @@ import org.springframework.stereotype.Component;
 
 import java.util.function.Supplier;
 
+/**
+ * 向量存储工厂。
+ * <p>
+ * 它负责把“优先创建外部向量库，失败则自动降级”的逻辑封装起来，
+ * 让配置类保持简洁，也让降级策略更集中。
+ */
 @Component
 public class EmbeddingStoreFactory {
 
     private static final Logger log = LoggerFactory.getLogger(EmbeddingStoreFactory.class);
 
-    public EmbeddingStore<TextSegment> createChromaOrFallback(Supplier<EmbeddingStore<TextSegment>> chromaSupplier) {
+    /**
+     * 创建 Chroma 向量存储，并在失败时回退到内存实现。
+     *
+     * @param chromaSupplier 构造 Chroma store 的逻辑
+     * @return 成功时返回 Chroma store，失败时返回内存 store
+     */
+    public EmbeddingStore<TextSegment> createChromaOrFallback(
+            Supplier<EmbeddingStore<TextSegment>> chromaSupplier) {
         try {
             return chromaSupplier.get();
         } catch (Throwable throwable) {
-            // Chroma 不可用时自动回退，确保开发和测试环境不会被外部依赖卡住。
+            // Chroma 不可用时自动回退，
+            // 保证开发和测试环境不会因为外部依赖失败而完全不可用。
             log.warn("Chroma embedding store 初始化失败，已回退到内存向量存储。", throwable);
             return new InMemoryEmbeddingStore<>();
         }
