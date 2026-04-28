@@ -6,17 +6,28 @@ This repository contains a Spring Boot backend and a frontend client for a local
 
 - `backend`: Spring Boot 3 Maven project
 - `frontend`: Vite React frontend
-- `docs`: project notes and design docs
+- `docs`: project notes, specs, and run guides
 
 ## Java Version
 
 The backend requires JDK 17.
 
-This project is intended to coexist with machines that still use JDK 8 as the global default. Do not change your whole machine just for this repository. Instead, set JDK 17 only for this project in IDEA.
+This project is intended to coexist with machines that still use JDK 8 as the global default. Do not change your whole machine just for this repository. Set JDK 17 only for this project or export it in the current shell before running Maven.
 
-## IDEA Setup For backend
+## Local Backend Commands
 
-Open `D:\work\java\spring-rag\backend` as the Maven project, then check these three places:
+From `D:\work\java\spring-rag\backend`:
+
+```powershell
+$env:JAVA_HOME='D:\Scoop\apps\openjdk17\current'
+$env:Path='D:\Scoop\apps\openjdk17\current\bin;' + $env:Path
+.\mvnw.cmd -version
+.\mvnw.cmd test
+```
+
+## IDEA Setup For Backend
+
+Open `D:\work\java\spring-rag\backend` as the Maven project, then check:
 
 1. `File -> Project Structure -> Project -> SDK`
    Set to `D:\Scoop\apps\openjdk17\current`
@@ -27,21 +38,53 @@ Open `D:\work\java\spring-rag\backend` as the Maven project, then check these th
 
 After that, click `Reload All Maven Projects`.
 
-## Maven Wrapper
+## DashScope Qwen Setup
 
-Use the wrapper inside `backend` so this project does not depend on whichever Maven version is installed globally.
+The backend now supports a real DashScope-backed RAG workflow for:
 
-From `D:\work\java\spring-rag\backend`:
+- query rewrite
+- retrieval evaluation
+- final answer generation
+
+Default configuration lives in [`backend/src/main/resources/application.yml`](D:/work/java/spring-rag/.worktrees/codex-qwen-rag-p0/backend/src/main/resources/application.yml:1).
+
+To enable the real LLM:
 
 ```powershell
-.\mvnw.cmd -version
-.\mvnw.cmd -DskipTests compile
+$env:DASHSCOPE_API_KEY='your-api-key'
 ```
 
-## Daily Rule For Multi-JDK Work
+Then set:
 
-- Keep your global default JDK 8 for old projects
-- Set JDK 17 only inside this project
-- Read `backend/pom.xml` first when a new Java project imports badly
+```yaml
+app:
+  rag:
+    llm:
+      enabled: true
+```
 
-If IDEA shows many unresolved Spring or `jakarta.*` imports, the first thing to check is whether the project accidentally opened with JDK 8.
+Current defaults:
+
+- provider: `dashscope`
+- model: `qwen-plus`
+- base URL: `https://dashscope.aliyuncs.com/compatible-mode/v1`
+
+## RAG Status Endpoint
+
+After startup, inspect:
+
+- `GET http://localhost:8089/api/rag/status`
+
+It now exposes:
+
+- embedding mode
+- store mode
+- Chroma connection settings
+- retrieval settings
+- LLM provider/model/base URL summary
+
+## Chroma Mode
+
+See [`docs/chroma-local-run.md`](D:/work/java/spring-rag/.worktrees/codex-qwen-rag-p0/docs/chroma-local-run.md:1) for local Chroma startup and test instructions.
+
+Note: the `ChatRagChromaIntegrationTest` only runs when a compatible Chroma V2 API is available on `localhost:8000`. If another service is bound to that port, the test is skipped and the application falls back to the in-memory store.

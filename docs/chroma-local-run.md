@@ -1,27 +1,40 @@
-# Chroma 本地联调
+# Chroma Local Run
 
-## 启动 Chroma
+## Start Chroma
 
 ```powershell
 cd D:\work\java\spring-rag
 docker compose up -d
 ```
 
-默认会在 `http://localhost:8000` 暴露 Chroma 服务。
+This exposes Chroma on `http://localhost:8000`.
 
-## 启动后端的 Chroma 模式
+## Run The Backend In Chroma Mode
 
 ```powershell
 $env:JAVA_HOME='D:\Scoop\apps\openjdk17\current'
 $env:Path='D:\Scoop\apps\openjdk17\current\bin;' + $env:Path
 cd D:\work\java\spring-rag\backend
-mvn spring-boot:run "-Dspring-boot.run.profiles=chroma"
+.\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=chroma"
 ```
 
-## 查看当前运行模式
+## Check Current Mode
 
-启动后可访问：
+After startup, open:
 
 - `GET http://localhost:8089/api/rag/status`
 
-如果返回 `storeMode=chroma`，说明当前已经切到 Chroma 向量存储。
+If the response shows `storeMode=chroma`, the profile is active.
+
+## Run The Chroma Integration Test
+
+The repository includes `ChatRagChromaIntegrationTest`.
+
+```powershell
+$env:JAVA_HOME='D:\Scoop\apps\openjdk17\current'
+$env:Path='D:\Scoop\apps\openjdk17\current\bin;' + $env:Path
+cd D:\work\java\spring-rag\backend
+.\mvnw.cmd -Dtest=ChatRagChromaIntegrationTest test
+```
+
+The test auto-skips when nothing is listening on `localhost:8000`.

@@ -16,6 +16,7 @@ class EmbeddingStoreConfigurationTest {
         EmbeddingStore<TextSegment> store = configuration.embeddingStore(
                 "inmemory",
                 "http://localhost:8000",
+                "v2",
                 "default_tenant",
                 "default_database",
                 "spring-rag",

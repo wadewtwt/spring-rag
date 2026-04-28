@@ -2,3 +2,5 @@ app:
   rag:
     store:
       mode: chroma
+      chroma:
+        api-version: v1
