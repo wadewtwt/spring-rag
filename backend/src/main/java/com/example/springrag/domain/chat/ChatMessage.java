@@ -1,5 +1,6 @@
 package com.example.springrag.domain.chat;
 
+import java.io.Serializable;
 import java.time.Instant;
 
 /**
@@ -13,7 +14,7 @@ import java.time.Instant;
  * @param content 消息正文
  * @param timestamp 消息产生时间
  */
-public record ChatMessage(String role, String content, Instant timestamp) {
+public record ChatMessage(String role, String content, Instant timestamp) implements Serializable {
 
     /**
      * 便捷构造方法。

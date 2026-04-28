@@ -1,6 +1,7 @@
 package com.example.springrag.application.chat;
 
 import com.example.springrag.application.document.KnowledgeBaseService;
+import com.example.springrag.domain.chat.ChatMessage;
 import com.example.springrag.domain.chat.SourceReference;
 import org.bsc.langgraph4j.StateGraph;
 import org.bsc.langgraph4j.action.AsyncEdgeAction;
@@ -33,27 +34,19 @@ public class RagWorkflowService {
         this.maxRetries = Math.max(0, maxRetries);
     }
 
-    public RagWorkflowResult run(String question, List<SourceReference> sources) {
-        if (sources.isEmpty()) {
-            return new RagWorkflowResult(
-                    "已收到你的问题：" + question + "。当前知识库里还没有足够匹配的资料，请补充文档后再试。",
-                    false,
-                    question,
-                    0,
-                    List.of()
-            );
-        }
-        SourceReference first = sources.get(0);
-        return new RagWorkflowResult(
-                "根据知识库《" + first.title() + "》的内容，" + first.snippet(),
-                true,
-                question,
-                0,
-                sources
-        );
+    public RagWorkflowResult run(String question) throws Exception {
+        return run(question, List.of());
     }
 
-    public RagWorkflowResult run(String question) throws Exception {
+    public RagWorkflowResult runWithoutLlm(String question) {
+        if (knowledgeBaseService == null) {
+            throw new IllegalStateException("RagWorkflowService requires knowledgeBaseService");
+        }
+
+        return answerFromRetrievedSources(question, knowledgeBaseService.search(question));
+    }
+
+    public RagWorkflowResult run(String question, List<ChatMessage> history) throws Exception {
         if (knowledgeBaseService == null || ragLlmGateway == null) {
             throw new IllegalStateException("RagWorkflowService requires knowledgeBaseService and ragLlmGateway");
         }
@@ -62,7 +55,8 @@ public class RagWorkflowService {
                 "question", question,
                 "currentQuery", question,
                 "sources", List.of(),
-                "retryCount", 0
+                "retryCount", 0,
+                "history", List.copyOf(history)
         )).orElseThrow();
 
         return new RagWorkflowResult(
@@ -71,6 +65,27 @@ public class RagWorkflowService {
                 finalState.currentQuery().orElse(question),
                 finalState.retryCount().orElse(0),
                 finalState.sources()
+        );
+    }
+
+    private RagWorkflowResult answerFromRetrievedSources(String question, List<SourceReference> sources) {
+        if (sources.isEmpty()) {
+            return new RagWorkflowResult(
+                    "The current knowledge base does not contain enough matching information to answer this question.",
+                    false,
+                    question,
+                    0,
+                    List.of()
+            );
+        }
+
+        SourceReference first = sources.get(0);
+        return new RagWorkflowResult(
+                "According to " + first.title() + ", " + first.snippet(),
+                true,
+                question,
+                0,
+                sources
         );
     }
 
@@ -98,7 +113,8 @@ public class RagWorkflowService {
                     RetrievalEvaluation evaluation = ragLlmGateway.evaluateRetrieval(
                             state.question().orElse(""),
                             state.currentQuery().orElse(""),
-                            state.sources()
+                            state.sources(),
+                            state.history()
                     );
                     return Map.of(
                             "retrievalSatisfied", evaluation.satisfied(),
@@ -111,7 +127,8 @@ public class RagWorkflowService {
                             state.question().orElse(""),
                             state.currentQuery().orElse(""),
                             state.retryCount().orElse(0),
-                            state.sources()
+                            state.sources(),
+                            state.history()
                     );
                     return Map.of(
                             "currentQuery", rewrittenQuery,
@@ -122,11 +139,12 @@ public class RagWorkflowService {
                         "answer", ragLlmGateway.generateAnswer(
                                 state.question().orElse(""),
                                 state.currentQuery().orElse(""),
-                                state.sources()
+                                state.sources(),
+                                state.history()
                         )
                 )))
                 .addNode("fallback", node_async(state -> Map.of(
-                        "answer", "当前知识库里还没有足够匹配的资料来回答这个问题，请补充相关文档后再试。"
+                        "answer", "The current knowledge base does not contain enough matching information to answer this question."
                 )))
                 .addEdge(START, "retriever")
                 .addEdge("retriever", "evaluator")

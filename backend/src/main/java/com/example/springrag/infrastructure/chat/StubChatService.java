@@ -6,6 +6,7 @@ import com.example.springrag.application.chat.HandoffPolicy;
 import com.example.springrag.application.chat.RagWorkflowResult;
 import com.example.springrag.application.chat.RagWorkflowService;
 import com.example.springrag.application.chat.SessionStateRepository;
+import com.example.springrag.config.RagProperties;
 import com.example.springrag.domain.chat.ChatMessage;
 import com.example.springrag.domain.chat.SessionState;
 import com.example.springrag.domain.chat.SourceReference;
@@ -18,16 +19,21 @@ import java.util.List;
 @Service
 public class StubChatService implements ChatService {
 
+    private static final int HISTORY_WINDOW_SIZE = 6;
+
     private final SessionStateRepository sessionStateRepository;
     private final HandoffPolicy handoffPolicy;
     private final RagWorkflowService ragWorkflowService;
+    private final RagProperties ragProperties;
 
     public StubChatService(SessionStateRepository sessionStateRepository,
                            HandoffPolicy handoffPolicy,
-                           RagWorkflowService ragWorkflowService) {
+                           RagWorkflowService ragWorkflowService,
+                           RagProperties ragProperties) {
         this.sessionStateRepository = sessionStateRepository;
         this.handoffPolicy = handoffPolicy;
         this.ragWorkflowService = ragWorkflowService;
+        this.ragProperties = ragProperties;
     }
 
     @Override
@@ -35,17 +41,30 @@ public class StubChatService implements ChatService {
         SseEmitter emitter = new SseEmitter(0L);
 
         SessionState state = sessionStateRepository.load(request.threadId());
+        List<ChatMessage> history = state.recentMessages(HISTORY_WINDOW_SIZE);
         state.appendMessage(new ChatMessage("user", request.message()));
 
         RagWorkflowResult workflowResult;
         try {
-            workflowResult = ragWorkflowService.run(request.message());
+            workflowResult = ragProperties.getLlm().isEnabled()
+                    ? ragWorkflowService.run(request.message(), history)
+                    : ragWorkflowService.runWithoutLlm(request.message());
         } catch (Exception exception) {
+            state.incrementFailures();
+            state.setHandoffSuggested(handoffPolicy.shouldHandoff(request.message(), state.getConsecutiveFailures()));
+            sessionStateRepository.save(state);
             throw new IllegalStateException("RAG workflow execution failed", exception);
         }
 
         String answer = workflowResult.answer();
         List<SourceReference> sources = workflowResult.sources();
+
+        if (workflowResult.retrievalSatisfied()) {
+            state.resetFailures();
+        } else {
+            state.incrementFailures();
+        }
+
         boolean handoffSuggested = handoffPolicy.shouldHandoff(
                 request.message(),
                 state.getConsecutiveFailures()

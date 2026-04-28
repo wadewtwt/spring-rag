@@ -1,5 +1,6 @@
 package com.example.springrag.application.chat;
 
+import com.example.springrag.domain.chat.ChatMessage;
 import com.example.springrag.domain.chat.SourceReference;
 import org.bsc.langgraph4j.state.AgentState;
 
@@ -28,6 +29,11 @@ public class RagWorkflowState extends AgentState {
     @SuppressWarnings("unchecked")
     public List<SourceReference> sources() {
         return (List<SourceReference>) value("sources").orElse(List.of());
+    }
+
+    @SuppressWarnings("unchecked")
+    public List<ChatMessage> history() {
+        return (List<ChatMessage>) value("history").orElse(List.of());
     }
 
     public Optional<Boolean> retrievalSatisfied() {

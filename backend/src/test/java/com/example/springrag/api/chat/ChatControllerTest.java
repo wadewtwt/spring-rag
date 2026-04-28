@@ -19,7 +19,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
+@SpringBootTest(properties = "app.rag.llm.enabled=true")
 @AutoConfigureMockMvc
 class ChatControllerTest {
 
@@ -31,15 +31,15 @@ class ChatControllerTest {
 
     @Test
     void shouldReturnServerSentEvents() throws Exception {
-        when(ragLlmGateway.evaluateRetrieval(anyString(), anyString(), anyList()))
+        when(ragLlmGateway.evaluateRetrieval(anyString(), anyString(), anyList(), anyList()))
                 .thenReturn(new RetrievalEvaluation(false, "no context"));
-        when(ragLlmGateway.rewriteQuestion(anyString(), anyString(), anyInt(), anyList()))
-                .thenReturn("你好");
+        when(ragLlmGateway.rewriteQuestion(anyString(), anyString(), anyInt(), anyList(), anyList()))
+                .thenReturn("hello");
 
         mockMvc.perform(post("/api/chat/stream")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"threadId":"thread-1","message":"你好"}
+                                {"threadId":"thread-1","message":"hello"}
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Type", containsString("text/event-stream")));

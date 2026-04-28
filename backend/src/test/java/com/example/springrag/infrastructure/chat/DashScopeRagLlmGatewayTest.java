@@ -2,6 +2,7 @@ package com.example.springrag.infrastructure.chat;
 
 import com.example.springrag.application.chat.RetrievalEvaluation;
 import com.example.springrag.config.RagProperties;
+import com.example.springrag.domain.chat.ChatMessage;
 import com.example.springrag.domain.chat.SourceReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpExchange;
@@ -49,7 +50,8 @@ class DashScopeRagLlmGatewayTest {
         String answer = gateway.generateAnswer(
                 "What is the warranty period?",
                 "What is the warranty period?",
-                List.of(new SourceReference("guide.md", "Warranty period is two years."))
+                List.of(new SourceReference("guide.md", "Warranty period is two years.")),
+                List.of(new ChatMessage("user", "What is the warranty period?"))
         );
 
         assertThat(answer).isEqualTo("The warranty period is two years.");
@@ -75,7 +77,8 @@ class DashScopeRagLlmGatewayTest {
         RetrievalEvaluation evaluation = gateway.evaluateRetrieval(
                 "What is the warranty period?",
                 "What is the warranty period?",
-                List.of(new SourceReference("guide.md", "Warranty period is two years."))
+                List.of(new SourceReference("guide.md", "Warranty period is two years.")),
+                List.of(new ChatMessage("user", "What is the warranty period?"))
         );
 
         assertThat(evaluation.satisfied()).isTrue();
@@ -86,7 +89,7 @@ class DashScopeRagLlmGatewayTest {
     void shouldRejectCallsWhenGatewayIsDisabled() {
         DisabledRagLlmGateway gateway = new DisabledRagLlmGateway();
 
-        assertThatThrownBy(() -> gateway.generateAnswer("q", "q", List.of()))
+        assertThatThrownBy(() -> gateway.generateAnswer("q", "q", List.of(), List.of()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("disabled");
     }

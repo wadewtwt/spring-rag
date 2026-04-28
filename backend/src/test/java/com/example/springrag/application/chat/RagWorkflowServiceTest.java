@@ -2,6 +2,7 @@ package com.example.springrag.application.chat;
 
 import com.example.springrag.application.chat.support.FakeWorkflowKnowledgeBaseService;
 import com.example.springrag.application.chat.support.FakeWorkflowLlmGateway;
+import com.example.springrag.domain.chat.ChatMessage;
 import com.example.springrag.domain.chat.SourceReference;
 import org.junit.jupiter.api.Test;
 
@@ -67,9 +68,36 @@ class RagWorkflowServiceTest {
 
         RagWorkflowResult result = workflowService.run("unknown question");
 
-        assertThat(result.answer()).contains("知识库");
+        assertThat(result.answer()).contains("knowledge base");
         assertThat(result.retrievalSatisfied()).isFalse();
         assertThat(result.finalQuery()).isEqualTo("expanded unknown question");
         assertThat(result.retryCount()).isEqualTo(1);
+    }
+
+    @Test
+    void shouldPassRecentConversationHistoryToAnswerGeneration() throws Exception {
+        FakeWorkflowKnowledgeBaseService knowledgeBaseService = new FakeWorkflowKnowledgeBaseService()
+                .whenQuery("When does it expire?", List.of(
+                        new SourceReference("guide.md", "The warranty expires after two years.")
+                ));
+        FakeWorkflowLlmGateway llmGateway = new FakeWorkflowLlmGateway()
+                .withEvaluation("When does it expire?", true, "enough context")
+                .withAnswer("When does it expire?", "It expires after two years.");
+        RagWorkflowService workflowService = new RagWorkflowService(knowledgeBaseService, llmGateway, 1);
+
+        workflowService.run(
+                "When does it expire?",
+                List.of(
+                        new ChatMessage("user", "What is the warranty period?"),
+                        new ChatMessage("assistant", "The warranty period is two years according to guide.md.")
+                )
+        );
+
+        assertThat(llmGateway.lastAnswerHistory())
+                .extracting(ChatMessage::content)
+                .containsExactly(
+                        "What is the warranty period?",
+                        "The warranty period is two years according to guide.md."
+                );
     }
 }

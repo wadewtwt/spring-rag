@@ -3,6 +3,7 @@ package com.example.springrag.infrastructure.chat;
 import com.example.springrag.application.chat.RagLlmGateway;
 import com.example.springrag.application.chat.RetrievalEvaluation;
 import com.example.springrag.config.RagProperties;
+import com.example.springrag.domain.chat.ChatMessage;
 import com.example.springrag.domain.chat.SourceReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -32,31 +33,44 @@ public class DashScopeRagLlmGateway implements RagLlmGateway {
     }
 
     @Override
-    public String rewriteQuestion(String question, String currentQuery, int retryCount, List<SourceReference> sources) {
+    public String rewriteQuestion(String question,
+                                  String currentQuery,
+                                  int retryCount,
+                                  List<SourceReference> sources,
+                                  List<ChatMessage> history) {
         String prompt = """
                 Rewrite the retrieval query for a RAG search.
                 Keep the user intent unchanged.
                 Return only the rewritten query.
 
+                Conversation history:
+                %s
+
                 User question: %s
                 Current query: %s
                 Retry count: %d
-                """.formatted(question, currentQuery, retryCount);
+                """.formatted(renderHistory(history), question, currentQuery, retryCount);
         return chat(prompt);
     }
 
     @Override
-    public RetrievalEvaluation evaluateRetrieval(String question, String currentQuery, List<SourceReference> sources) {
+    public RetrievalEvaluation evaluateRetrieval(String question,
+                                                 String currentQuery,
+                                                 List<SourceReference> sources,
+                                                 List<ChatMessage> history) {
         String prompt = """
                 Decide whether the retrieved snippets are sufficient to answer the user question.
                 Return JSON only, using this shape:
                 {"satisfied":true|false,"reason":"short reason"}
 
+                Conversation history:
+                %s
+
                 User question: %s
                 Current query: %s
                 Sources:
                 %s
-                """.formatted(question, currentQuery, renderSources(sources));
+                """.formatted(renderHistory(history), question, currentQuery, renderSources(sources));
         String content = chat(prompt);
         try {
             JsonNode node = objectMapper.readTree(content);
@@ -70,16 +84,22 @@ public class DashScopeRagLlmGateway implements RagLlmGateway {
     }
 
     @Override
-    public String generateAnswer(String question, String currentQuery, List<SourceReference> sources) {
+    public String generateAnswer(String question,
+                                 String currentQuery,
+                                 List<SourceReference> sources,
+                                 List<ChatMessage> history) {
         String prompt = """
                 Answer the user question using only the provided knowledge base snippets.
                 If the snippets are insufficient, say so explicitly.
+
+                Conversation history:
+                %s
 
                 User question: %s
                 Current query: %s
                 Sources:
                 %s
-                """.formatted(question, currentQuery, renderSources(sources));
+                """.formatted(renderHistory(history), question, currentQuery, renderSources(sources));
         return chat(prompt);
     }
 
@@ -118,6 +138,15 @@ public class DashScopeRagLlmGateway implements RagLlmGateway {
     private String renderSources(List<SourceReference> sources) {
         return sources.stream()
                 .map(source -> source.title() + ": " + source.snippet())
+                .collect(Collectors.joining("\n"));
+    }
+
+    private String renderHistory(List<ChatMessage> history) {
+        if (history.isEmpty()) {
+            return "(none)";
+        }
+        return history.stream()
+                .map(message -> message.role() + ": " + message.content())
                 .collect(Collectors.joining("\n"));
     }
 }

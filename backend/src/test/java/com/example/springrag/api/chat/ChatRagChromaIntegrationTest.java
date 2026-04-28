@@ -36,7 +36,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
+@SpringBootTest(properties = "app.rag.llm.enabled=true")
 @AutoConfigureMockMvc
 @ActiveProfiles("chroma")
 class ChatRagChromaIntegrationTest {
@@ -53,9 +53,9 @@ class ChatRagChromaIntegrationTest {
     @Test
     @EnabledIf("isChromaAvailable")
     void shouldUseChromaStoreWhenProfileIsActive() throws Exception {
-        when(ragLlmGateway.evaluateRetrieval(anyString(), anyString(), anyList()))
+        when(ragLlmGateway.evaluateRetrieval(anyString(), anyString(), anyList(), anyList()))
                 .thenReturn(new RetrievalEvaluation(true, "enough context"));
-        when(ragLlmGateway.generateAnswer(anyString(), anyString(), anyList()))
+        when(ragLlmGateway.generateAnswer(anyString(), anyString(), anyList(), anyList()))
                 .thenReturn("The warranty period is two years according to guide.md.");
 
         assertThat(embeddingStore).isInstanceOf(ChromaEmbeddingStore.class);
