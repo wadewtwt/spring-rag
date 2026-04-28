@@ -37,13 +37,14 @@ public class EmbeddingStoreConfiguration {
     public EmbeddingStore<TextSegment> embeddingStore(
             @Value("${app.rag.store.mode:inmemory}") String mode,
             @Value("${app.rag.store.chroma.base-url:http://localhost:8000}") String baseUrl,
+            @Value("${app.rag.store.chroma.api-version:v2}") String apiVersion,
             @Value("${app.rag.store.chroma.tenant:default_tenant}") String tenant,
             @Value("${app.rag.store.chroma.database:default_database}") String database,
             @Value("${app.rag.store.chroma.collection:spring-rag}") String collection,
             EmbeddingStoreFactory factory) {
         if ("chroma".equalsIgnoreCase(mode)) {
             return factory.createChromaOrFallback(() -> ChromaEmbeddingStore.builder()
-                    .apiVersion(ChromaApiVersion.V2)
+                    .apiVersion(resolveApiVersion(apiVersion))
                     .baseUrl(baseUrl)
                     .tenantName(tenant)
                     .databaseName(database)
@@ -51,5 +52,12 @@ public class EmbeddingStoreConfiguration {
                     .build());
         }
         return new InMemoryEmbeddingStore<>();
+    }
+
+    private ChromaApiVersion resolveApiVersion(String apiVersion) {
+        if ("v1".equalsIgnoreCase(apiVersion)) {
+            return ChromaApiVersion.V1;
+        }
+        return ChromaApiVersion.V2;
     }
 }
