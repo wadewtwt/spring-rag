@@ -42,7 +42,7 @@ export async function* streamChat(request: ChatRequest): AsyncGenerator<StreamEv
   });
 
   if (!response.ok || !response.body) {
-    throw new Error("后端聊天服务暂不可用，请确认 8080 端口服务已启动。");
+    throw new Error("后端聊天服务暂不可用，请确认 8089 端口服务已启动。");
   }
 
   const reader = response.body.getReader();

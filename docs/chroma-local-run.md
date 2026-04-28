@@ -22,6 +22,6 @@ mvn spring-boot:run "-Dspring-boot.run.profiles=chroma"
 
 启动后可访问：
 
-- `GET http://localhost:8080/api/rag/status`
+- `GET http://localhost:8089/api/rag/status`
 
 如果返回 `storeMode=chroma`，说明当前已经切到 Chroma 向量存储。
