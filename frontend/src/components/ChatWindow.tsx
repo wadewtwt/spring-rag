@@ -1,6 +1,7 @@
-import { FormEvent, useEffect, useState } from "react";
-import { SourceReferenceView, StreamEvent } from "../types/chat";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import { uploadDocument } from "../services/document";
 import { streamChat } from "../services/chat";
+import { SourceReferenceView, StreamEvent } from "../types/chat";
 
 const THREAD_KEY = "spring-rag-thread-id";
 
@@ -16,7 +17,7 @@ function getOrCreateThreadId(): string {
   if (existing) {
     return existing;
   }
-  // 把 threadId 固定在本地，方便后端后续接入持久化会话。
+
   const nextThreadId = createThreadId();
   window.localStorage.setItem(THREAD_KEY, nextThreadId);
   return nextThreadId;
@@ -35,6 +36,13 @@ export function ChatWindow() {
   const [error, setError] = useState("");
   const [handoffNotice, setHandoffNotice] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
+
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadSuccess, setUploadSuccess] = useState("");
+  const [uploadError, setUploadError] = useState("");
+  const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     setThreadId(getOrCreateThreadId());
@@ -62,6 +70,31 @@ export function ChatWindow() {
       setError(streamError instanceof Error ? streamError.message : "消息流处理失败，请稍后重试。");
     } finally {
       setIsStreaming(false);
+    }
+  }
+
+  async function handleUpload(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedFile || isUploading) {
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadError("");
+    setUploadSuccess("");
+
+    try {
+      const uploadedDocument = await uploadDocument(selectedFile);
+      setUploadSuccess(`Uploaded and indexed: ${uploadedDocument.fileName}`);
+      setUploadedFiles((previous) => [...previous, uploadedDocument.fileName]);
+      setSelectedFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    } catch {
+      setUploadError("Document upload failed. Please retry after checking the backend service.");
+    } finally {
+      setIsUploading(false);
     }
   }
 
@@ -97,8 +130,7 @@ export function ChatWindow() {
         <p className="eyebrow">企业级 AI 客服骨架</p>
         <h1>Spring RAG 客服控制台</h1>
         <p className="subtitle">
-          线程 ID
-          {" "}
+          线程 ID{" "}
           <span className="thread-chip">{threadId || "生成中..."}</span>
         </p>
       </section>
@@ -109,6 +141,44 @@ export function ChatWindow() {
             <h2>对话窗口</h2>
             <span>{isStreaming ? "流式返回中" : "等待输入"}</span>
           </header>
+
+          <section className="upload-card">
+            <div className="upload-copy">
+              <h3>上传知识文档</h3>
+              <p>上传后会立即写入知识库，你可以继续在当前页面提问。</p>
+            </div>
+
+            <form className="upload-form" onSubmit={handleUpload}>
+              <label className="upload-label" htmlFor="document-upload">
+                Select document
+              </label>
+              <input
+                ref={fileInputRef}
+                id="document-upload"
+                type="file"
+                onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
+              />
+              <button type="submit" disabled={!selectedFile || isUploading}>
+                {isUploading ? "Uploading..." : "Upload document"}
+              </button>
+            </form>
+
+            {uploadSuccess ? <p className="status success">{uploadSuccess}</p> : null}
+            {uploadError ? <p className="status error">{uploadError}</p> : null}
+
+            <div className="upload-history">
+              <strong>Uploaded in this session</strong>
+              {uploadedFiles.length === 0 ? (
+                <p className="upload-empty">No documents uploaded yet.</p>
+              ) : (
+                <ul className="upload-list">
+                  {uploadedFiles.map((fileName) => (
+                    <li key={fileName}>{fileName}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </section>
 
           <div className="message-list">
             {messages.length === 0 ? (
